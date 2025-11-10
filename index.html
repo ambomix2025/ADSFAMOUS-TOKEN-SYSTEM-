@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADSFAMOUS - Real-Time Token System</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d); color: white; min-height: 100vh; padding: 10px; }
+        .container { max-width: 800px; margin: 0 auto; padding: 15px; }
+        .header { text-align: center; margin-bottom: 15px; padding: 10px; background: rgba(0, 0, 0, 0.3); border-radius: 10px; }
+        .main-title { font-size: 2.2rem; font-weight: bold; margin-bottom: 5px; color: #ffcc00; }
+        .sub-title { font-size: 1rem; margin-bottom: 15px; line-height: 1.3; }
+        .current-section { background: rgba(0, 0, 0, 0.5); border-radius: 15px; padding: 20px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
+        .section-title { font-size: 1.3rem; margin-bottom: 10px; color: #ffcc00; }
+        .current-customer { font-size: 2.5rem; font-weight: bold; margin: 15px 0; min-height: 70px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 15px; }
+        .queue-section { background: rgba(0, 0, 0, 0.5); border-radius: 15px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); }
+        .queue-title { font-size: 1.3rem; margin-bottom: 15px; color: #ffcc00; }
+        .queue-list { list-style-type: none; }
+        .queue-item { background: rgba(255, 255, 255, 0.1); margin-bottom: 10px; padding: 12px; border-radius: 8px; font-size: 1.2rem; }
+        .info-box { background: rgba(0, 0, 0, 0.5); border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); text-align: center; }
+        .remaining-tokens { font-size: 1.5rem; font-weight: bold; color: #ffcc00; }
+        .buttons-container { display: flex; justify-content: space-between; margin-top: 15px; gap: 10px; }
+        .btn { padding: 12px 20px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.3s; flex: 1; text-align: center; }
+        .terms-btn { background: #3498db; color: white; }
+        .my-turn-btn { background: #2ecc71; color: white; }
+        .admin-btn { background: #e74c3c; color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); }
+        .admin-panel, .login-panel, .my-turn-panel, .terms-panel { background: rgba(0, 0, 0, 0.8); border-radius: 15px; padding: 20px; margin-top: 20px; display: none; }
+        .admin-title { font-size: 1.5rem; margin-bottom: 15px; color: #ffcc00; display: flex; justify-content: space-between; align-items: center; }
+        .home-btn, .back-btn { background: #9b59b6; color: white; padding: 8px 15px; border-radius: 5px; font-size: 0.9rem; cursor: pointer; margin-top: 10px; }
+        .back-btn { background: #95a5a6; width: 100%; }
+        .admin-controls { display: flex; flex-direction: column; gap: 15px; }
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        .input-group label { font-weight: bold; }
+        .input-group input { padding: 10px; border-radius: 5px; border: none; font-size: 1rem; }
+        .admin-buttons { display: flex; gap: 10px; }
+        .add-btn { background: #2ecc71; color: white; }
+        .next-btn { background: #f39c12; color: white; }
+        .reset-btn { background: #e74c3c; color: white; }
+        .login-title, .my-turn-title, .terms-title { font-size: 1.5rem; margin-bottom: 15px; color: #ffcc00; text-align: center; }
+        .login-input { padding: 10px; border-radius: 5px; border: none; font-size: 1rem; width: 100%; margin-bottom: 15px; }
+        .login-btn { background: #3498db; color: white; padding: 10px 20px; border-radius: 5px; border: none; font-size: 1rem; cursor: pointer; width: 100%; }
+        .customer-list { list-style-type: none; max-height: 400px; overflow-y: auto; }
+        .customer-item { background: rgba(255, 255, 255, 0.1); margin-bottom: 10px; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .customer-name { font-size: 1.2rem; font-weight: bold; }
+        .customer-time { font-size: 0.9rem; color: #ccc; }
+        .terms-content { text-align: left; line-height: 1.6; }
+        .terms-content ol { padding-left: 20px; margin-bottom: 15px; }
+        .terms-content li { margin-bottom: 10px; }
+        .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+        .status-online { background: #2ecc71; }
+        .status-offline { background: #e74c3c; }
+        @media (max-width: 600px) {
+            .main-title { font-size: 1.8rem; }
+            .current-customer { font-size: 2rem; }
+            .queue-item { font-size: 1rem; }
+            .buttons-container, .admin-buttons { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="main-title">ADSFAMOUS</h1>
+            <p class="sub-title">A DIVISION OF HOME RANGE FACTORY<br>ALL KERALA HOUSEWIVES EMPOWERMENT ACTIVITIES</p>
+            <div id="connectionStatus">
+                <span class="status-indicator status-offline" id="statusIndicator"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+        
+        <div class="current-section">
+            <h2 class="section-title">ഇപ്പോൾ വർക്ക് ചെയ്തു കൊണ്ടിരിക്കുന്നത്</h2>
+            <div class="current-customer" id="currentCustomer">-</div>
+        </div>
+        
+        <div class="info-box">
+            <div class="remaining-tokens">ബാക്കിയുള്ള ടോക്കണുകൾ: <span id="remainingTokens">80</span></div>
+        </div>
+        
+        <div class="queue-section">
+            <div class="queue-title">
+                <span>അടുത്തതായി ക്യൂവിൽ (Next 3)</span>
+            </div>
+            <ul class="queue-list" id="queueList">
+                <li class="queue-item">-</li>
+                <li class="queue-item">-</li>
+                <li class="queue-item">-</li>
+            </ul>
+        </div>
+        
+        <div class="buttons-container">
+            <button class="btn terms-btn" id="termsBtn">TERMS & Conditions</button>
+            <button class="btn my-turn-btn" id="myTurnBtn">MY TURN</button>
+            <button class="btn admin-btn" id="adminBtn">Admin Panel</button>
+        </div>
+        
+        <div class="login-panel" id="loginPanel">
+            <h2 class="login-title">Admin Login</h2>
+            <input type="password" class="login-input" id="adminCode" placeholder="Enter Admin Code">
+            <button class="login-btn" id="loginBtn">Login</button>
+            <button class="back-btn" id="backFromLoginBtn">Back to Home</button>
+        </div>
+        
+        <div class="admin-panel" id="adminPanel">
+            <h2 class="admin-title">
+                <span>Admin Panel</span>
+                <button class="home-btn" id="homeBtn">Home</button>
+            </h2>
+            <div class="admin-controls">
+                <div class="input-group">
+                    <label for="customerName">പേര് ചേർക്കുക (Add Name):</label>
+                    <input type="text" id="customerName" placeholder="ഉപഭോക്താവിന്റെ പേര്">
+                </div>
+                <div class="admin-buttons">
+                    <button class="btn add-btn" id="addCustomerBtn">പേര് ചേർക്കുക</button>
+                    <button class="btn next-btn" id="nextCustomerBtn">അടുത്തയാളെ വിളിക്കുക</button>
+                    <button class="btn reset-btn" id="resetBtn">സിസ്റ്റം റീസെറ്റ് ചെയ്യുക</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="my-turn-panel" id="myTurnPanel">
+            <h2 class="my-turn-title">എന്റെ ടേൺ</h2>
+            <ul class="customer-list" id="customerList"></ul>
+            <button class="back-btn" id="backFromMyTurnBtn">Back to Home</button>
+        </div>
+        
+        <div class="terms-panel" id="termsPanel">
+            <h2 class="terms-title">കമ്പനിയുടെ നിബന്ധനകളും നിർദ്ദേശങ്ങളും</h2>
+            <div class="terms-content">
+                <ol>
+                    <li><strong>സേവനങ്ങളുമായി ബന്ധപ്പെട്ട നിർദ്ദേശങ്ങൾ</strong><br>നമ്മുടെ ഡിസൈനിങ് സേവനങ്ങൾ കേരളത്തിൽ മാത്രമല്ല, യൂറോപ്യൻ രാജ്യങ്ങൾ, ഗൾഫ് രാജ്യങ്ങൾ, ഇന്ത്യയിലെ വിവിധ സംസ്ഥാനങ്ങൾ എന്നിവിടങ്ങളിലേക്കും വ്യാപിച്ചിരിക്കുന്നു. അതിനാൽ, ദയവായി പോസ്റ്റർ ആവശ്യങ്ങൾ കുറഞ്ഞത് ഒരു ദിവസം മുൻകൂട്ടി ബുക്ക് ചെയ്യണം. അടിയന്തിരമായി ആവശ്യമുള്ള ഡിസൈൻ ആവശ്യങ്ങൾക്കായി സമയബന്ധിതമായ അധിക ചാർജ് ബാധകമായിരിക്കും.</li>
+                    <li><strong>അടിയന്തിര സേവനങ്ങൾ (Urgent Service)</strong><br>ഒരു മണിക്കൂറിനുള്ളിൽ പോസ്റ്റർ ആവശ്യപ്പെട്ടാൽ, ഞങ്ങളുടെ മറ്റു എല്ലാ ജോലികളും മാറ്റിവെച്ച് അത് പൂർത്തിയാക്കേണ്ട സാഹചര്യമുണ്ടാകും. അതിനാൽ ഇത്തരം കേസുകളിൽ മണിക്കൂർ അടിസ്ഥാനത്തിലുള്ള പ്രത്യേക നിരക്ക് (Hourly Charge) ബാധകമാകും.</li>
+                    <li><strong>സമയപരിധിയും നിർമാണ സമയവും</strong><br>പോസ്റ്റർ ഡിസൈൻ : ഏകദേശം 3 മണിക്കൂർ<br>വീഡിയോ ഡിസൈൻ : ഏകദേശം 6 മണിക്കൂർ<br>ബ്രൗഷർ, ലോഗോ തുടങ്ങിയവ : ഏകദേശം 24 മണിക്കൂർ<br>ബുക്ക് ചെയ്യുന്ന സമയത്ത് ഈ സമയപരിധികൾ അനുസരിച്ച് നിങ്ങളുടെ പ്രോജക്റ്റ് ഷെഡ്യൂൾ ചെയ്യപ്പെടും.</li>
+                    <li><strong>ആവശ്യമായ വിവരങ്ങൾ നൽകൽ</strong><br>ഡിസൈൻ ആരംഭിക്കുന്നതിന് മുമ്പ്, നിങ്ങൾ ആവശ്യപ്പെടുന്ന പോസ്റ്ററിന്റെ സാമ്പിൾ, ടെക്സ്റ്റ്, ഉൾപ്പെടുത്തേണ്ട ചിത്രങ്ങൾ, നിറങ്ങൾ, ആശയങ്ങൾ എന്നിവ കൃത്യമായും വിശദമായും നൽകണം. ഇതിലൂടെ ഞങ്ങൾക്ക് നിങ്ങളുടെ പ്രതീക്ഷകൾക്ക് അനുയോജ്യമായ രീതിയിൽ പ്രവർത്തിക്കാൻ സാധിക്കും.</li>
+                    <li><strong>എഡിറ്റിംഗും തിരുത്തലുകളും</strong><br>ഔട്ട്പുട്ട് നൽകിയതിന് ശേഷം ചെറിയ മാറ്റങ്ങൾ മാത്രമേ (ഉദാ: നമ്പർ, സ്ഥലം, വില തുടങ്ങിയവ) സൗജന്യമായി അനുവദിക്കൂ.<br>വിപുലമായ മാറ്റങ്ങൾ ആവശ്യപ്പെട്ടാൽ (ഉദാ: തീം മാറ്റം, കളർ കോൺസെപ്റ്റ് മാറ്റം, ഡിസൈൻ സ്റ്റൈൽ മാറ്റം എന്നിവ) ഇപ്പോഴത്തെ നിരക്കിന്റെ ഇരട്ടി തുക ബാധകമാകും.</li>
+                    <li><strong>പ്രൂഫ് പരിശോധിക്കുന്നതും ഫൈനൽ കൺഫർമേഷനും</strong><br>നിങ്ങൾക്ക് നൽകുന്ന പ്രൂഫ് (Proof Output) ശ്രദ്ധാപൂർവം പരിശോധിച്ച്, ആവശ്യമായ മാറ്റങ്ങൾ ഒറ്റ തവണ പറഞ്ഞാൽ നല്ലത്.<br>പെട്ടെന്ന് മറുപടി നൽകി പിന്നീട് കൂടുതൽ മാറ്റങ്ങൾ ആവശ്യപ്പെടുന്നവർക്ക്, ഡബിൾ ചാർജ് (Double Edit Charge) ബാധകമായിരിക്കും. അതിനാൽ ഫൈനൽ സ്ഥിരീകരണം നൽകുന്നതിന് മുമ്പ് ഔട്ട്പുട്ട് നന്നായി പരിശോധിക്കുക.</li>
+                    <li><strong>പെയ്മെന്റ് നിബന്ധനകൾ</strong><br>പ്രോജക്റ്റ് ബുക്ക് ചെയ്യുമ്പോൾ കുറഞ്ഞത് 50% അഡ്വാൻസ് നൽകേണ്ടതാണ്. ബാക്കിയുള്ള തുക ഫൈനൽ ഔട്ട്പുട്ട് ലഭിക്കുന്നതിനു മുൻപ് അടയ്ക്കണം.</li>
+                    <li><strong>കാപ്പിറൈറ്റ് അവകാശം</strong><br>കമ്പനി ഈ ഡിസൈൻ ഫ്യൂച്ചർ റഫറൻസായി പ്രദർശിപ്പിക്കാൻ അവകാശം നിലനിർത്തും.</li>
+                    <li><strong>കമ്മ്യൂണിക്കേഷൻ മാർഗങ്ങൾ</strong><br>വർക്കിനിടെ എല്ലാ ആശയവിനിമയങ്ങളും ഓഫീഷ്യൽ ചാനലുകൾ വഴിയാണ് (WhatsApp / Email / Company Portal) നടത്തേണ്ടത്. വ്യക്തിപരമായ അക്കൗണ്ടുകൾ വഴിയുള്ള കമ്മ്യൂണിക്കേഷൻ കമ്പനി അംഗീകരിക്കുന്നതല്ല.</li>
+                </ol>
+                <p><strong>നിങ്ങളുടെ സഹകരണത്തിനും വിശ്വാസത്തിനും നന്ദി!</strong><br>നമുക്ക് ഒരുമിച്ച് കൂടുതൽ സൃഷ്ടികൾ ഉണ്ടാക്കാം 🎨✨</p>
+            </div>
+            <button class="back-btn" id="backFromTermsBtn">Back to Home</button>
+        </div>
+    </div>
+
+    <script>
+        // 🔥 Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBFSECaaEN21U27yaCXPww_3m30Xcctp8E",
+            authDomain: "adsfamous-token-system.firebaseapp.com",
+            databaseURL: "https://adsfamous-token-system-default-rtdb.firebaseio.com",
+            projectId: "adsfamous-token-system",
+            storageBucket: "adsfamous-token-system.firebasestorage.app",
+            messagingSenderId: "466633428181",
+            appId: "1:466633428181:web:c6a8e19a8a73ce0016a65c"
+        };
+
+        // Firebase ഇനിഷ്യലൈസ് ചെയ്യുക
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Admin codes
+        const adminCodes = [
+            '3OOJ5NOG', 'Q3F41FOK', 'MOZ1N1OQ', 'QL1UGELD', 'PQ9IHZ1G',
+            'E9J0ZZCY', 'Q52OD49Y', '5UTL7ROD', '3A7ZOW5W', 'BWMB0G1Y',
+            '969DP3L6', 'UY4EY1DX', 'LXE43XDZ', 'OMYU8RPY', 'VHFL653M',
+            '35F8K9C0', 'S8LRZQ5B', 'FN2CGG08', 'GYRU9RWW', 'H0W5537I',
+            '02HVHX18', 'WKQHK1S8', 'B4VQQI5Z', 'CC2545I7', 'XLG5M2CM'
+        ];
+        
+        const mainAdminCode = 'VJTHRF25';
+        
+        // DOM elements
+        const currentCustomerEl = document.getElementById('currentCustomer');
+        const queueListEl = document.getElementById('queueList');
+        const remainingTokensEl = document.getElementById('remainingTokens');
+        const customerListEl = document.getElementById('customerList');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        
+        const adminBtn = document.getElementById('adminBtn');
+        const loginPanel = document.getElementById('loginPanel');
+        const adminPanel = document.getElementById('adminPanel');
+        const loginBtn = document.getElementById('loginBtn');
+        const adminCodeInput = document.getElementById('adminCode');
+        const homeBtn = document.getElementById('homeBtn');
+        const backFromLoginBtn = document.getElementById('backFromLoginBtn');
+        const backFromMyTurnBtn = document.getElementById('backFromMyTurnBtn');
+        const backFromTermsBtn = document.getElementById('backFromTermsBtn');
+        
+        const customerNameInput = document.getElementById('customerName');
+        const addCustomerBtn = document.getElementById('addCustomerBtn');
+        const nextCustomerBtn = document.getElementById('nextCustomerBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        
+        const termsBtn = document.getElementById('termsBtn');
+        const termsPanel = document.getElementById('termsPanel');
+        const myTurnBtn = document.getElementById('myTurnBtn');
+        const myTurnPanel = document.getElementById('myTurnPanel');
+
+        // Firebase connection status
+        const connectedRef = database.ref(".info/connected");
+        connectedRef.on("value", function(snap) {
+            if (snap.val() === true) {
+                statusIndicator.className = "status-indicator status-online";
+                statusText.textContent = "Connected - Live Updates";
+            } else {
+                statusIndicator.className = "status-indicator status-offline";
+                statusText.textContent = "Offline - Reconnecting...";
+            }
+        });
+
+        // Firebase ഡാറ്റ ലിസ്റ്റനർസ്
+        function setupFirebaseListeners() {
+            // Current customer listener
+            database.ref('currentCustomer').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    currentCustomerEl.textContent = data.name;
+                } else {
+                    currentCustomerEl.textContent = '-';
+                }
+            });
+
+            // Queue listener
+            database.ref('queue').on('value', (snapshot) => {
+                const queue = snapshot.val() || [];
+                const queueItems = queueListEl.querySelectorAll('.queue-item');
+                
+                for (let i = 0; i < 3; i++) {
+                    if (queue[i]) {
+                        queueItems[i].textContent = queue[i].name;
+                    } else {
+                        queueItems[i].textContent = '-';
+                    }
+                }
+                
+                updateRemainingTokens(queue);
+            });
+
+            // Customer history listener
+            database.ref('customerHistory').on('value', (snapshot) => {
+                const history = snapshot.val() || [];
+                updateCustomerList(history);
+            });
+        }
+
+        // Initialize Firebase listeners
+        setupFirebaseListeners();
+
+        // Event listeners
+        adminBtn.addEventListener('click', () => {
+            loginPanel.style.display = 'block';
+            adminPanel.style.display = 'none';
+            myTurnPanel.style.display = 'none';
+            termsPanel.style.display = 'none';
+        });
+        
+        loginBtn.addEventListener('click', () => {
+            const code = adminCodeInput.value.trim();
+            if (adminCodes.includes(code) || code === mainAdminCode) {
+                loginPanel.style.display = 'none';
+                adminPanel.style.display = 'block';
+                
+                // 🔒 IMPORTANT: Only show "Next Customer" button for main admin
+                if (code === mainAdminCode) {
+                    resetBtn.style.display = 'block';
+                    nextCustomerBtn.style.display = 'block';
+                } else {
+                    resetBtn.style.display = 'none';
+                    nextCustomerBtn.style.display = 'none';
+                }
+            } else {
+                alert('Invalid admin code!');
+            }
+            adminCodeInput.value = '';
+        });
+        
+        homeBtn.addEventListener('click', goToHome);
+        backFromLoginBtn.addEventListener('click', goToHome);
+        backFromMyTurnBtn.addEventListener('click', goToHome);
+        backFromTermsBtn.addEventListener('click', goToHome);
+        
+        function goToHome() {
+            adminPanel.style.display = 'none';
+            loginPanel.style.display = 'none';
+            myTurnPanel.style.display = 'none';
+            termsPanel.style.display = 'none';
+        }
+        
+        addCustomerBtn.addEventListener('click', () => {
+            const name = customerNameInput.value.trim();
+            if (name) {
+                const now = new Date();
+                const dateTime = now.toLocaleString('en-IN', {
+                    timeZone: 'Asia/Kolkata',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                
+                // Firebase-ലേക്ക് ഡാറ്റ എഴുതുക
+                database.ref('queue').transaction((queue) => {
+                    queue = queue || [];
+                    queue.push({ name, addedAt: dateTime });
+                    return queue;
+                });
+                
+                database.ref('customerHistory').transaction((history) => {
+                    history = history || [];
+                    history.push({ name, addedAt: dateTime });
+                    return history;
+                });
+                
+                customerNameInput.value = '';
+                playNotificationSound();
+            }
+        });
+        
+        nextCustomerBtn.addEventListener('click', () => {
+            database.ref('queue').transaction((queue) => {
+                if (queue && queue.length > 0) {
+                    const nextCustomer = queue[0];
+                    database.ref('currentCustomer').set(nextCustomer);
+                    queue.shift();
+                    return queue;
+                }
+                return queue;
+            });
+            
+            playNotificationSound();
+        });
+        
+        resetBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset the system? This will clear all data.')) {
+                database.ref('currentCustomer').remove();
+                database.ref('queue').set([]);
+                database.ref('customerHistory').set([]);
+            }
+        });
+        
+        termsBtn.addEventListener('click', () => {
+            termsPanel.style.display = 'block';
+            adminPanel.style.display = 'none';
+            loginPanel.style.display = 'none';
+            myTurnPanel.style.display = 'none';
+        });
+        
+        myTurnBtn.addEventListener('click', () => {
+            myTurnPanel.style.display = 'block';
+            adminPanel.style.display = 'none';
+            loginPanel.style.display = 'none';
+            termsPanel.style.display = 'none';
+        });
+
+        // Functions
+        function updateRemainingTokens(queue) {
+            const totalTokens = 80;
+            const usedTokens = queue ? queue.length : 0;
+            remainingTokensEl.textContent = totalTokens - usedTokens;
+        }
+        
+        function updateCustomerList(history) {
+            customerListEl.innerHTML = '';
+            
+            if (!history || history.length === 0) {
+                const li = document.createElement('li');
+                li.className = 'customer-item';
+                li.textContent = 'No customers yet';
+                customerListEl.appendChild(li);
+            } else {
+                history.forEach((customer, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'customer-item';
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'customer-name';
+                    nameSpan.textContent = `${index + 1}. ${customer.name}`;
+                    
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'customer-time';
+                    timeSpan.textContent = customer.addedAt;
+                    
+                    li.appendChild(nameSpan);
+                    li.appendChild(timeSpan);
+                    customerListEl.appendChild(li);
+                });
+            }
+        }
+        
+        function playNotificationSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+    </script>
+</body>
+</html>
